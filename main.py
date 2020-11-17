@@ -6,7 +6,6 @@ import requests
 
 N = 10
 
-
 URLS = ['https://www.avito.ru/',
         'https://www.speedtest.net/',
         'https://djbook.ru/',
@@ -16,7 +15,7 @@ URLS = ['https://www.avito.ru/',
         ]
 
 
-def test_url(what_url: Text, count: int = 10, sleep_time: int = 1):
+def test_url(what_url: Text, count: int = 10, sleep_time: int = 1) -> float:
     """
     выполнит http get запрос по  адресу если код не 200 сгенирит ошибку
     если все хорошо - подсчитает время выполнения запросов
@@ -29,7 +28,7 @@ def test_url(what_url: Text, count: int = 10, sleep_time: int = 1):
     print(f'\nbegin test {what_url} :')
     for i in range(count):
         response = requests.get(url=what_url)
-        print('.',end='')
+        print('.', end='')
         if response.status_code != 200:
             raise ConnectionError(f'{what_url} -> Bad response code {response.status_code} in {i} iteration ')
 
