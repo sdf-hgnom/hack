@@ -37,7 +37,8 @@ def test_url(what_url: Text, count: int = 10, sleep_time: int = 1) -> float:
     return time.monotonic() - begin_time
 
 
-def get_pass(len: int = 8):
+def get_good_pass(password_length: int = 8):
+    """Генирация хорошего пароля"""
     let = ''.join([chr(i) for i in range(97, 97 + 26)])
 
     let_up = let.upper()
@@ -45,12 +46,30 @@ def get_pass(len: int = 8):
     alpha = let + let_up + simbols
     new_pass = ''
 
-    for _ in range(len):
+    for _ in range(password_length):
         new_pass += random.choice(alpha)
     return new_pass
 
 
+def get_bad_passwords(count: int = 10):
+    reading_lines = []
+    with open('./common_passwords.txt', 'rt', encoding='utf-8') as file:
+        for _ in range(count):
+            reading_lines.append(file.readline().strip())
+
+    def wrapper():
+        for current in reading_lines:
+            yield current
+
+    return wrapper()
+
+
 if __name__ == '__main__':
+    print('beg')
+    bad_passwords = get_bad_passwords(count=20)
+    for current_password in bad_passwords:
+        print(current_password)
+
     for url in URLS:
         try:
             time_period = test_url(what_url=url, count=100, sleep_time=5)
