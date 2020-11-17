@@ -7,7 +7,7 @@ import requests
 N = 10
 
 
-urls = ['https://www.avito.ru/',
+URLS = ['https://www.avito.ru/',
         'https://www.speedtest.net/',
         'https://djbook.ru/',
         'http://styxcosmetic.ru/',
@@ -52,9 +52,9 @@ def get_pass(len: int = 8):
 
 
 if __name__ == '__main__':
-    for url in urls:
+    for url in URLS:
         try:
-            time_period = test_url(what_url=url, count=10, sleep_time=5)
+            time_period = test_url(what_url=url, count=100, sleep_time=5)
             print(f'\nTest end with {time_period} sec')
         except ConnectionError as ex:
             print(ex.args)
