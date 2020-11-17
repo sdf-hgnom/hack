@@ -42,8 +42,8 @@ def get_good_pass(password_length: int = 8):
     let = ''.join([chr(i) for i in range(97, 97 + 26)])
 
     let_up = let.upper()
-    simbols = ''.join([chr(i) for i in range(33, 64)])
-    alpha = let + let_up + simbols
+    symbols = ''.join([chr(i) for i in range(33, 64)])
+    alpha = let + let_up + symbols
     new_pass = ''
 
     for _ in range(password_length):
