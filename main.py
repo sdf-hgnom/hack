@@ -1,5 +1,6 @@
+# use Python 3.8
 import random
-from typing import Text
+from typing import Text, Iterable
 import time
 
 import requests
@@ -37,7 +38,7 @@ def test_url(what_url: Text, count: int = 10, sleep_time: int = 1) -> float:
     return time.monotonic() - begin_time
 
 
-def get_good_pass(password_length: int = 8):
+def get_good_pass(password_length: int = 8) -> Text:
     """Генирация хорошего пароля"""
     let = ''.join([chr(i) for i in range(97, 97 + 26)])
 
@@ -51,7 +52,8 @@ def get_good_pass(password_length: int = 8):
     return new_pass
 
 
-def get_bad_passwords(count: int = 10):
+def get_bad_passwords(count: int = 10) -> Iterable:
+    """Считываем count плохих паролей и отдаем их гениратор"""
     reading_lines = []
     with open('./common_passwords.txt', 'rt', encoding='utf-8') as file:
         for _ in range(count):
